@@ -7,7 +7,7 @@ using Prak02;
 // Keys (hex) und Plaintext (hex) direkt hier setzen
 const string key1 = "16cf";
 const string key2 = "2ea3";
-string plaintextUtf8 = "Hi there What are we doing today";
+string plaintextUtf8 = "Hello World!";
 string plaintext = ToHex(plaintextUtf8);
 
 
@@ -54,51 +54,77 @@ Console.WriteLine($"dec2={dec2}");
 Console.WriteLine($"dec1={dec1}");
 Console.WriteLine($"dec1_utf8={dec1Utf8}");
 
-var lol = new KnownPlaintextAndCiphertext { Plaintext = plaintext, Ciphertext = ciphertext };
-var lolliste = new List<KnownPlaintextAndCiphertext> { lol };
-MeetInTheMiddle(lolliste);
 // Meet in the middle attack
 
-static void MeetInTheMiddle(List<KnownPlaintextAndCiphertext> knownPlaintextAndCiphertexts)
+des1.SetDirect(true);
+des2.SetDirect(true);
+
+string plaintext1Utf8 = "Wir gehen rein";
+string plaintext1 = ToHex(plaintext1Utf8);
+string ciphertext1 = des2.Cipher(des1.Cipher(plaintext1));
+
+string plaintext2Utf8 = "Hello World!";
+string plaintext2 = ToHex(plaintext2Utf8);
+string ciphertext2 = des2.Cipher(des1.Cipher(plaintext2));
+
+
+var knownPlaintextAndCiphertext1 = new KnownPlaintextAndCiphertext { Plaintext = plaintext1, Ciphertext = ciphertext1 };
+var knownPlaintextAndCiphertext2 = new KnownPlaintextAndCiphertext { Plaintext = plaintext2, Ciphertext = ciphertext2 };
+
+var lol = new KnownPlaintextAndCiphertext { Plaintext = plaintext, Ciphertext = ciphertext };
+List<string> lolList = new List<string>();
+for (int i = 0; i <= 0xFFFF; i++)
+{
+    string hexKey = i.ToString("X4"); // 4-stellig: "0000" bis "FFFF"
+    lolList.Add(hexKey);
+}
+var tuple = MeetInTheMiddle(knownPlaintextAndCiphertext1, lolList, lolList);
+MeetInTheMiddle(knownPlaintextAndCiphertext2, tuple.K1, tuple.K2);
+
+
+(List<string> K1, List<string> K2) MeetInTheMiddle(KnownPlaintextAndCiphertext knownPlaintextAndCiphertexts, 
+    List<string> possibleKeysK1, List<string> possibleKeysK2)
 {
     // Init
     var des1 = new ToyDes();
     des1.SetDirect(true);
-    var des2 = new ToyDes();    
+    var des2 = new ToyDes();
     des2.SetDirect(false);
     
-    // Contains all possible ciphertexts (x) for a given plaintext as key and matching keys as values
+    // locally stored
     Dictionary<string, List<string>> multiDict = new Dictionary<string, List<string>>();
-    HashSet<string> possibleKeysK1 = new HashSet<string>();
-    HashSet<string> possibleKeysK2 = new HashSet<string>();
-    
-    for (int i = 0; i <= 0xFFFF; i++)
+    List<string> newPossibleKeysK1 = new List<string>();
+    List<string> newPossibleKeysK2 = new List<string>();
+
+    foreach (var key in possibleKeysK1)
     {
-        var hexKey = i.ToString("X4"); // 4-stellig: "0000" bis "FFFF"
-        des1.SetKey(hexKey);
-        var x = des1.Cipher(knownPlaintextAndCiphertexts.First().Plaintext);; // cypher after des1
+        des1.SetKey(key);
+        var x = des1.Cipher(knownPlaintextAndCiphertexts.Plaintext);
+        ; // cypher after des1
         if (!multiDict.ContainsKey(x))
         {
             multiDict[x] = new List<string>();
         }
-        multiDict[x].Add(hexKey);
+
+        multiDict[x].Add(key);
     }
 
-    for (int i = 0; i <= 0xFFFF; i++)
+    foreach (var key in possibleKeysK2)
     {
-        var hexKey = i.ToString("x4");
-        des2.SetKey(hexKey);
-        var x = des2.Cipher(knownPlaintextAndCiphertexts.First().Ciphertext);
+        des2.SetKey(key);
+        var x = des2.Cipher(knownPlaintextAndCiphertexts.Ciphertext);
         if (multiDict.ContainsKey(x))
         {
-            possibleKeysK1.UnionWith(multiDict[x]);
-            possibleKeysK2.Add(hexKey);
+            newPossibleKeysK1.AddRange(multiDict[x]);
+            newPossibleKeysK2.Add(key);
             multiDict.Remove(x);
         }
     }
     
-    Console.WriteLine($"Possible keys K1: {string.Join(", ", possibleKeysK1)}");
-    Console.WriteLine($"Possible keys K2: {string.Join(", ", possibleKeysK2)}");
+    Console.WriteLine($"Possible keys K1: {string.Join(", ", newPossibleKeysK1)}");
+    Console.WriteLine($"Possible keys K2: {string.Join(", ", newPossibleKeysK2)}");
+    
+    return (newPossibleKeysK1, newPossibleKeysK2);
 }
 
 // Helper 
@@ -107,7 +133,7 @@ static string ToHex(string text)
 {
     return Convert.ToHexString(Encoding.UTF8.GetBytes(text));
 }
-    
+
 // Hex zu String
 static string FromHex(string hex)
 {
