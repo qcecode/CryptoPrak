@@ -83,82 +83,83 @@ Console.WriteLine($"Searching for key1={key1.ToUpper()}, key2={key2.ToUpper()}")
 Console.WriteLine($"\nRound 1 with plaintext1='{plaintext1Utf8}':");
 Console.WriteLine($"  Plaintext:  {plaintext1}");
 Console.WriteLine($"  Ciphertext: {ciphertext1}");
-var tuple = MeetInTheMiddle(knownPlaintextAndCiphertext1, lolList, lolList);
+var round1Pairs = MeetInTheMiddle(knownPlaintextAndCiphertext1, lolList, lolList);
+
+// Extrahiere unique K1 und K2 aus Round 1 für Round 2
+var candidateK1 = round1Pairs.Select(p => p.K1).Distinct().ToList();
+var candidateK2 = round1Pairs.Select(p => p.K2).Distinct().ToList();
 
 Console.WriteLine($"\nRound 2 with plaintext2='{plaintext2Utf8}':");
 Console.WriteLine($"  Plaintext:  {plaintext2}");
 Console.WriteLine($"  Ciphertext: {ciphertext2}");
-var finalResult = MeetInTheMiddle(knownPlaintextAndCiphertext2, tuple.K1, tuple.K2);
+var finalResult = MeetInTheMiddle(knownPlaintextAndCiphertext2, candidateK1, candidateK2);
 
 Console.WriteLine($"\n=== Final Result ===");
-// Erstelle eindeutige Paare
-var uniquePairs = finalResult.K1.Zip(finalResult.K2, (k1, k2) => (K1: k1, K2: k2))
-    .Distinct()
-    .OrderBy(p => p.K1)
-    .ThenBy(p => p.K2)
-    .ToList();
+var sortedPairs = finalResult.OrderBy(p => p.K1).ThenBy(p => p.K2).ToList();
 
-Console.WriteLine($"Found {uniquePairs.Count} unique key pair(s):");
-foreach (var pair in uniquePairs)
+Console.WriteLine($"Found {finalResult.Count} unique key pair(s):");
+foreach (var pair in sortedPairs)
 {
     string match = (pair.K1.Equals(key1.ToUpper()) && pair.K2.Equals(key2.ToUpper())) ? " ← CORRECT!" : "";
     Console.WriteLine($"  K1={pair.K1}, K2={pair.K2}{match}");
 }
 
 
-(List<string> K1, List<string> K2) MeetInTheMiddle(KnownPlaintextAndCiphertext knownPlaintextAndCiphertexts, 
-    List<string> possibleKeysK1, List<string> possibleKeysK2)
+HashSet<(string K1, string K2)> MeetInTheMiddle(
+    KnownPlaintextAndCiphertext knownPlaintextAndCiphertexts,
+    List<string> possibleKeysK1,
+    List<string> possibleKeysK2)
 {
     // Init
     var des1 = new ToyDes();
     des1.SetDirect(true);
     var des2 = new ToyDes();
     des2.SetDirect(false);
-    
-    // locally stored
-    Dictionary<string, List<string>> multiDict = new Dictionary<string, List<string>>();
-    List<string> newPossibleKeysK1 = new List<string>();
-    List<string> newPossibleKeysK2 = new List<string>();
 
-    foreach (var key in possibleKeysK1)
+    // Dictionary: Zwischenwert -> Liste von K1-Schlüsseln, die zu diesem Zwischenwert führen
+    var intermediateToK1 = new Dictionary<string, List<string>>();
+
+    // HashSet für gefundene Schlüsselpaare - automatisch ohne Duplikate!
+    var validKeyPairs = new HashSet<(string K1, string K2)>();
+
+    // Phase 1: Verschlüssle Plaintext mit allen K1 und speichere Zwischenwerte
+    foreach (var k1 in possibleKeysK1)
     {
-        des1.SetKey(key);
-        var x = des1.Cipher(knownPlaintextAndCiphertexts.Plaintext);
-        ; // cypher after des1
-        if (!multiDict.ContainsKey(x))
-        {
-            multiDict[x] = new List<string>();
-        }
+        des1.SetKey(k1);
+        var intermediate = des1.Cipher(knownPlaintextAndCiphertexts.Plaintext);
 
-        multiDict[x].Add(key);
+        if (!intermediateToK1.ContainsKey(intermediate))
+        {
+            intermediateToK1[intermediate] = new List<string>();
+        }
+        intermediateToK1[intermediate].Add(k1);
     }
 
-    foreach (var key in possibleKeysK2)
+    // Phase 2: Entschlüssle Ciphertext mit allen K2 und suche Matches
+    foreach (var k2 in possibleKeysK2)
     {
-        des2.SetKey(key);
-        var x = des2.Cipher(knownPlaintextAndCiphertexts.Ciphertext);
-        if (multiDict.ContainsKey(x))
+        des2.SetKey(k2);
+        var intermediate = des2.Cipher(knownPlaintextAndCiphertexts.Ciphertext);
+
+        if (intermediateToK1.ContainsKey(intermediate))
         {
-            // Wichtig: Füge K2 für JEDEN K1-Match hinzu
-            foreach (var k1 in multiDict[x])
+            // Match gefunden! Alle K1-Schlüssel zu diesem Zwischenwert sind gültig
+            foreach (var k1 in intermediateToK1[intermediate])
             {
-                newPossibleKeysK1.Add(k1);
-                newPossibleKeysK2.Add(key);
+                validKeyPairs.Add((k1, k2));
             }
-            // NICHT entfernen - könnte mehrere K2 für gleichen Zwischenwert geben!
-            // multiDict.Remove(x);
         }
     }
-    
-    // Dedupliziere die Listen, da mehrere Zwischenwerte zu gleichen Keys führen können
-    var distinctK1 = newPossibleKeysK1.Distinct().ToList();
-    var distinctK2 = newPossibleKeysK2.Distinct().ToList();
 
-    Console.WriteLine($"Possible keys K1 ({distinctK1.Count}): {string.Join(", ", distinctK1)}");
-    Console.WriteLine($"Possible keys K2 ({distinctK2.Count}): {string.Join(", ", distinctK2)}");
-    Console.WriteLine($"Total combinations to test: {distinctK1.Count} × {distinctK2.Count} = {distinctK1.Count * distinctK2.Count}");
+    // Extrahiere unique K1 und K2 für Debug-Ausgabe
+    var uniqueK1 = validKeyPairs.Select(p => p.K1).Distinct().OrderBy(k => k).ToList();
+    var uniqueK2 = validKeyPairs.Select(p => p.K2).Distinct().OrderBy(k => k).ToList();
 
-    return (distinctK1, distinctK2);
+    Console.WriteLine($"Possible keys K1 ({uniqueK1.Count}): {string.Join(", ", uniqueK1)}");
+    Console.WriteLine($"Possible keys K2 ({uniqueK2.Count}): {string.Join(", ", uniqueK2)}");
+    Console.WriteLine($"Valid key pairs found: {validKeyPairs.Count}");
+
+    return validKeyPairs;
 }
 
 // Helper 
