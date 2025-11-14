@@ -91,10 +91,18 @@ Console.WriteLine($"  Ciphertext: {ciphertext2}");
 var finalResult = MeetInTheMiddle(knownPlaintextAndCiphertext2, tuple.K1, tuple.K2);
 
 Console.WriteLine($"\n=== Final Result ===");
-Console.WriteLine($"Found {finalResult.K1.Count} key pair(s):");
-for (int i = 0; i < finalResult.K1.Count; i++)
+// Erstelle eindeutige Paare
+var uniquePairs = finalResult.K1.Zip(finalResult.K2, (k1, k2) => (K1: k1, K2: k2))
+    .Distinct()
+    .OrderBy(p => p.K1)
+    .ThenBy(p => p.K2)
+    .ToList();
+
+Console.WriteLine($"Found {uniquePairs.Count} unique key pair(s):");
+foreach (var pair in uniquePairs)
 {
-    Console.WriteLine($"  K1={finalResult.K1[i]}, K2={finalResult.K2[i]}");
+    string match = (pair.K1.Equals(key1.ToUpper()) && pair.K2.Equals(key2.ToUpper())) ? " ← CORRECT!" : "";
+    Console.WriteLine($"  K1={pair.K1}, K2={pair.K2}{match}");
 }
 
 
@@ -142,10 +150,15 @@ for (int i = 0; i < finalResult.K1.Count; i++)
         }
     }
     
-    Console.WriteLine($"Possible keys K1: {string.Join(", ", newPossibleKeysK1)}");
-    Console.WriteLine($"Possible keys K2: {string.Join(", ", newPossibleKeysK2)}");
-    
-    return (newPossibleKeysK1, newPossibleKeysK2);
+    // Dedupliziere die Listen, da mehrere Zwischenwerte zu gleichen Keys führen können
+    var distinctK1 = newPossibleKeysK1.Distinct().ToList();
+    var distinctK2 = newPossibleKeysK2.Distinct().ToList();
+
+    Console.WriteLine($"Possible keys K1 ({distinctK1.Count}): {string.Join(", ", distinctK1)}");
+    Console.WriteLine($"Possible keys K2 ({distinctK2.Count}): {string.Join(", ", distinctK2)}");
+    Console.WriteLine($"Total combinations to test: {distinctK1.Count} × {distinctK2.Count} = {distinctK1.Count * distinctK2.Count}");
+
+    return (distinctK1, distinctK2);
 }
 
 // Helper 
