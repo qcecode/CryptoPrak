@@ -47,15 +47,43 @@ namespace Prak02
                 throw new InvalidOperationException($"toy_des_set_direct failed with error {ret}");
         }
 
+        /// <summary>
+        /// Verschlüsselt/entschlüsselt einen Hex-String beliebiger Länge (Vielfaches von 4 Hex-Zeichen).
+        /// Intern wird blockweise (2 Bytes = 4 Hex) gearbeitet, damit die native Funktion zuverlässig funktioniert.
+        /// </summary>
         public string Cipher(string hex)
         {
             if (hex is null) throw new ArgumentNullException(nameof(hex));
-            var buffer = Convert.FromHexString(hex);
-            var len = buffer.Length;
+            if (hex.Length % 2 != 0)
+                throw new ArgumentException("Hex-String muss eine gerade Anzahl an Zeichen haben (volle Bytes)");
+            if (hex.Length % 4 != 0)
+                throw new ArgumentException("Hex-String-Länge muss Vielfaches von 4 sein (2-Byte-Blöcke)");
+
+            // Schneller Pfad: einzelner Block
+            if (hex.Length == 4)
+                return CipherBlock(hex);
+
+            // Mehrere Blöcke: jeweils 4 Hex-Zeichen verarbeiten
+            var sb = new System.Text.StringBuilder(hex.Length);
+            for (int i = 0; i < hex.Length; i += 4)
+            {
+                var block = hex.Substring(i, 4);
+                sb.Append(CipherBlock(block));
+            }
+            return sb.ToString();
+        }
+
+        private string CipherBlock(string hex4)
+        {
+            // Erwartet genau 1 Block = 2 Bytes = 4 Hex-Zeichen
+            if (hex4 is null || hex4.Length != 4)
+                throw new ArgumentException("hex4 muss genau 4 Hex-Zeichen (1 Block) enthalten", nameof(hex4));
+
+            var buffer = Convert.FromHexString(hex4);
+            var len = buffer.Length; // = 2
             var ret = NativeMethods.toy_des_cipher(_handle, buffer, ref len, buffer.Length);
             if (ret != 0)
                 throw new InvalidOperationException($"toy_des_cipher failed with error {ret}");
-            // Buffer wird in-place modifiziert; Länge bleibt gleich
             return Convert.ToHexString(buffer).ToLowerInvariant();
         }
 
