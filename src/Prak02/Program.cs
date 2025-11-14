@@ -78,8 +78,24 @@ for (int i = 0; i <= 0xFFFF; i++)
     string hexKey = i.ToString("X4"); // 4-stellig: "0000" bis "FFFF"
     lolList.Add(hexKey);
 }
+Console.WriteLine("\n=== Meet-in-the-Middle Attack ===");
+Console.WriteLine($"Searching for key1={key1.ToUpper()}, key2={key2.ToUpper()}");
+Console.WriteLine($"\nRound 1 with plaintext1='{plaintext1Utf8}':");
+Console.WriteLine($"  Plaintext:  {plaintext1}");
+Console.WriteLine($"  Ciphertext: {ciphertext1}");
 var tuple = MeetInTheMiddle(knownPlaintextAndCiphertext1, lolList, lolList);
-MeetInTheMiddle(knownPlaintextAndCiphertext2, tuple.K1, tuple.K2);
+
+Console.WriteLine($"\nRound 2 with plaintext2='{plaintext2Utf8}':");
+Console.WriteLine($"  Plaintext:  {plaintext2}");
+Console.WriteLine($"  Ciphertext: {ciphertext2}");
+var finalResult = MeetInTheMiddle(knownPlaintextAndCiphertext2, tuple.K1, tuple.K2);
+
+Console.WriteLine($"\n=== Final Result ===");
+Console.WriteLine($"Found {finalResult.K1.Count} key pair(s):");
+for (int i = 0; i < finalResult.K1.Count; i++)
+{
+    Console.WriteLine($"  K1={finalResult.K1[i]}, K2={finalResult.K2[i]}");
+}
 
 
 (List<string> K1, List<string> K2) MeetInTheMiddle(KnownPlaintextAndCiphertext knownPlaintextAndCiphertexts, 
@@ -115,9 +131,14 @@ MeetInTheMiddle(knownPlaintextAndCiphertext2, tuple.K1, tuple.K2);
         var x = des2.Cipher(knownPlaintextAndCiphertexts.Ciphertext);
         if (multiDict.ContainsKey(x))
         {
-            newPossibleKeysK1.AddRange(multiDict[x]);
-            newPossibleKeysK2.Add(key);
-            multiDict.Remove(x);
+            // Wichtig: Füge K2 für JEDEN K1-Match hinzu
+            foreach (var k1 in multiDict[x])
+            {
+                newPossibleKeysK1.Add(k1);
+                newPossibleKeysK2.Add(key);
+            }
+            // NICHT entfernen - könnte mehrere K2 für gleichen Zwischenwert geben!
+            // multiDict.Remove(x);
         }
     }
     
