@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Prak02
+namespace Prak02.Cryptography
 {
     internal static class NativeMethods
     {
@@ -47,10 +47,6 @@ namespace Prak02
                 throw new InvalidOperationException($"toy_des_set_direct failed with error {ret}");
         }
 
-        /// <summary>
-        /// Verschlüsselt/entschlüsselt einen Hex-String beliebiger Länge (Vielfaches von 4 Hex-Zeichen).
-        /// Intern wird blockweise (2 Bytes = 4 Hex) gearbeitet, damit die native Funktion zuverlässig funktioniert.
-        /// </summary>
         public string Cipher(string hex)
         {
             if (hex is null) throw new ArgumentNullException(nameof(hex));
@@ -59,23 +55,21 @@ namespace Prak02
             if (hex.Length % 4 != 0)
                 throw new ArgumentException("Hex-String-Länge muss Vielfaches von 4 sein (2-Byte-Blöcke)");
 
-            // Schneller Pfad: einzelner Block
             if (hex.Length == 4)
                 return CipherBlock(hex);
 
-            // Mehrere Blöcke: jeweils 4 Hex-Zeichen verarbeiten
             var sb = new System.Text.StringBuilder(hex.Length);
             for (int i = 0; i < hex.Length; i += 4)
             {
                 var block = hex.Substring(i, 4);
                 sb.Append(CipherBlock(block));
             }
+
             return sb.ToString();
         }
 
         private string CipherBlock(string hex4)
         {
-            // Erwartet genau 1 Block = 2 Bytes = 4 Hex-Zeichen
             if (hex4 is null || hex4.Length != 4)
                 throw new ArgumentException("hex4 muss genau 4 Hex-Zeichen (1 Block) enthalten", nameof(hex4));
 
