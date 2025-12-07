@@ -30,3 +30,13 @@ The program automatically performs a Meet-in-the-Middle attack on Double-DES.
 
 - The project uses a native Linux library (`libdestoy.so`) which is included
 - Tested on Ubuntu with x86-64 architecture
+
+## Prak 3
+
+```bash
+# From project directory:
+dotnet run --project src/Prak03/Prak03.csproj
+```
+
+This program computes the discrete logarithm x for g^x ≡ h (mod p) using the Baby-Step Giant-Step algorithm
+with .NET's System.Numerics.BigInteger (minimal custom implementation).
