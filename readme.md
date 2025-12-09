@@ -56,7 +56,7 @@ BSGS ist √n mal schneller als Brute-Force.
 Für p = 6971096459:
 - n = 6.971.096.458
 - √n ≈ 83.494
-- **Verbesserungsfaktor: ~83.492×** (gemessen: ~83.492× schneller)
+- **Verbesserungsfaktor: ~83×**
 
 **Erklärung des Trade-offs:**
 
