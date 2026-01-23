@@ -1,109 +1,77 @@
-# Praktikum 3: Diskrete Logarithmen – Baby-Step Giant-Step
+# Praktikum 4: Baby-SHA Hash Function
 
-## Build Instructions (Ubuntu/Linux)
+## Build Instructions
 
 ### Requirements
-- .NET 9.0 SDK
+- .NET 10.0 SDK
 
-### Building the project
+### Running Prak04
 ```bash
-# Build entire project
-dotnet build
-
-# Or build only Prak03
-dotnet build src/Prak03/Prak03.csproj
+dotnet run --project src/Prak04/Prak04.csproj
 ```
-
-### Running Prak03
-```bash
-# From project directory:
-dotnet run --project src/Prak03/Prak03.csproj
-
-# Or run directly after build:
-dotnet src/Prak03/bin/Debug/net9.0/Prak03.dll
-```
-
-### Expected Output
-The program automatically:
-- Solves the discrete logarithm problem using Baby-Step Giant-Step algorithm
-- Demonstrates space-time trade-offs with different k-factors (0.1, 0.5, 1.0, 2.0, 5.0)
-
-
-### Notes
-- Pure .NET implementation, no native libraries required
-- Tested on macOS with arm architecture
-- Works on any platform with .NET 9.0 SDK (Windows, macOS, Linux)
 
 ---
 
-## Antworten zu den Aufgaben
+## Task 1: Properties of Cryptographic Hash Functions
 
-### Teil (b): Zeit- und Speicherkomplexität
+### Task 1a: Preimage-Angriff
 
-**Zeit- und Speicherkomplexität:**
+**Ziel:** Finde ein alphanumerisches Passwort, das den Hash `d44a0fd4` erzeugt.
 
-| Algorithmus | Zeitkomplexität | Speicherkomplexität |
-|-------------|-----------------|---------------------|
-| **BSGS** | O(√n) | O(√n) |
-| **Brute-Force** | O(n) | O(1) |
+**Methode:** Brute-Force über alle alphanumerischen Kombinationen (a-z, A-Z, 0-9) mit steigender Länge.
 
-wobei n = p - 1 = 6971096458
+**Implementierung:** `Task1a_PreimageAttack()` in Program.cs
 
-**Verbesserung:**
+### Task 1b: Brute-Force-Analyse für 32-bit Plaintext
 
-BSGS ist √n mal schneller als Brute-Force.
+**Theoretische Analyse:**
+- Keyspace: 2^32 = 4.294.967.296 mögliche Werte
+- Erwartete Versuche (Durchschnitt): 2^31 ≈ 2.147.483.648
+- Bei 50% Wahrscheinlichkeit nach ~2^31 Versuchen gefunden
 
-Für p = 6971096459:
-- n = 6.971.096.458
-- √n ≈ 83.494
-- **Verbesserungsfaktor: ~83×**
-
-**Erklärung des Trade-offs:**
-
-Der Baby-Step Giant-Step Algorithmus tauscht Speicher gegen Zeit:
-- Er verwendet O(√n) zusätzlichen Speicher für die Hash-Tabelle der Baby-Steps
-- Dadurch reduziert sich die Laufzeit von O(n) auf O(√n)
-- Dies ist ein klassisches Beispiel für ein **Time-Space Trade-off**
-
-**Warum ist BSGS effizienter?**
-
-Der Algorithmus vermeidet die vollständige Enumeration durch:
-1. **Baby-Steps:** Vorberechnung von g^j für j = 0 bis m-1 (Speicherung in Hash-Tabelle)
-2. **Giant-Steps:** Berechnung von h·(g^(-m))^i und Lookup in der Tabelle
-3. Bei einem Match gilt: g^(i·m+j) ≡ h (mod p), also x = i·m + j
-
-Statt alle p-1 Exponenten zu testen, benötigt BSGS nur etwa 2√n Operationen.
+**Praktische Analyse:** Das Programm führt einen tatsächlichen Brute-Force durch und vergleicht die Ergebnisse mit der Theorie.
 
 ---
 
-### Teil (c): Space-Time Trade-off Modifikation
+## Task 2: Sample Applications of Cryptographic Hash Functions
 
-**Antwort:**
+### Szenario
+Alice behauptet, ein Rätsel gelöst zu haben. Bob möchte es selbst lösen, will aber sicher sein, dass Alice nicht blufft.
 
-Ja, es gibt einen Space-Time Trade-off im BSGS-Algorithmus.
+### Lösung: Commitment Scheme
 
-**Prinzip:**
+**Ablauf:**
 
-Statt m = √n zu wählen, können wir einen beliebigen Wert m wählen:
-- **Größeres m** → mehr Speicher, weniger Giant-Steps (theoretisch schneller)
-- **Kleineres m** → weniger Speicher, mehr Giant-Steps (langsamer)
+1. **Commitment (Alice):**
+   - Alice berechnet `P = BabySha(lösung)`
+   - Alice sendet nur den Hash `P` an Bob
+   - Dies ist der Beweis, dass Alice eine Lösung hat
 
-**Mathematische Analyse:**
+2. **Bob löst das Rätsel:**
+   - Bob kennt nur `P`, nicht die Lösung
+   - Er kann `P` nicht missbrauchen, da Preimage-Resistenz gilt
 
-Die Gesamtkomplexität beträgt O(m + n/m), wobei:
-- m = Anzahl der Baby-Steps (Speicherverbrauch)
-- n/m = Anzahl der Giant-Steps (maximale Iterationen)
+3. **Reveal (Alice):**
+   - Alice enthüllt ihre Lösung an Bob
 
-Diese Funktion wird bei m = √n minimiert.
+4. **Verification (Bob):**
+   - Bob berechnet `BabySha(alice_lösung)`
+   - Prüft ob `BabySha(alice_lösung) == P`
 
-**Implementierung:**
+**Warum funktioniert das?**
 
-Der Trade-off wird durch Variation von m realisiert:
-```csharp
-var m = (BigInteger)((double)m_optimal / k_factor);
+| Eigenschaft | Garantie |
+|-------------|----------|
+| **Preimage-Resistenz** | Bob kann aus `P` nicht die Lösung berechnen |
+| **Binding** | Alice kann später keine andere Lösung präsentieren, die denselben Hash `P` erzeugt |
+
+**Beispiel:**
+```
+Alice's Lösung: "42"
+P = BabySha("42") = 8f3a2b1c
+
+Alice sendet P an Bob → Bob kann "42" nicht aus 8f3a2b1c ableiten
+Bob löst selbst → findet auch "42"
+Alice enthüllt "42" → Bob verifiziert: BabySha("42") == 8f3a2b1c ✓
 ```
 
-wo:
-- k_factor < 1: Mehr Speicher (größeres m)
-- k_factor = 1: Standard BSGS (optimal)
-- k_factor > 1: Weniger Speicher (kleineres m)
