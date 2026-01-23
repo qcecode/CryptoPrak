@@ -8,7 +8,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="BabySha\" />
+        <!-- Native Library: bleibt im BabySha/ Unterordner -->
+        <Content Include="BabySha/libbabysha.dylib" Condition="Exists('BabySha/libbabysha.dylib')">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+        <Content Include="BabySha/libbabysha.so" Condition="Exists('BabySha/libbabysha.so')">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
 
 </Project>

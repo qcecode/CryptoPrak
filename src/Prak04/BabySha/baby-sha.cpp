@@ -94,6 +94,13 @@ State test_baby_sha(std::string text, State iv = DEFAULT_IV)
     return result;
 }
 
+extern "C" {
+    unsigned int baby_sha_hash(const char* data, unsigned int dataLength) {
+        State result = baby_sha(data, dataLength);
+        return result.dword;
+    }
+}
+
 int main(int argc, char* argv[])
 {
     test_baby_sha("");
